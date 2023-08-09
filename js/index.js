@@ -18,7 +18,3 @@ function drawColumn(x, width, height) {
     ctx.fillStyle = gradient;
     ctx.fillRect(x, canvas.height - height / 2, width, height);
 }
-
-drawColumn(0, 100, 600);
-
-drawColumn(400, 10, 30);
