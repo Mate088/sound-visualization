@@ -1,5 +1,32 @@
+const columnsGap = 10;
+const columnCount = 256;
+
 const canvas = document.getElementById('player-fireplace')
 const ctx = canvas.getContext('2d');
+
+const player = document.getElementById('audio-player');
+
+let audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+let source = audioCtx.createMediaElementSource(player);
+let analyser = audioCtx.createAnalyser();
+analyser.fftSize = columnCount;
+source.connect(analyser);
+analyser.connect(audioCtx.destination)
+
+let frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+
+document.getElementById('player-btn').addEventListener('click', function() {
+    if(!this.classList.contains('play-btn__play')) {
+        player.play();
+        this.textContent = 'Pause';
+        this.classList.add('play-btn__play');
+    } else {
+        player.pause();
+        this.textContent = 'Play';
+        this.classList.remove('play-btn__play');       
+    }
+})
 
 window.addEventListener('resize', resizeCanvas, false);
 
@@ -7,6 +34,9 @@ function resizeCanvas() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 }
+
+
+
 
 resizeCanvas();
 
@@ -18,3 +48,28 @@ function drawColumn(x, width, height) {
     ctx.fillStyle = gradient;
     ctx.fillRect(x, canvas.height - height / 2, width, height);
 }
+
+function render() {
+
+    analyser.getByteFrequencyData(frequencyData);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const columnWidth = (canvas.width / frequencyData.length) - columnsGap + (columnsGap / frequencyData.length);
+    const heightScale = canvas.height / 100;
+
+    let xPos = 0;
+
+    for (let i = 0; i < frequencyData.length; i++) {
+        let columnHeight = frequencyData[i] * heightScale;
+
+        drawColumn(xPos,columnWidth, columnHeight / 2);
+        
+        xPos += columnWidth + columnsGap;
+    }
+
+    window.requestAnimationFrame(render)
+
+}
+
+window.requestAnimationFrame(render);
