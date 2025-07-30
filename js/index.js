@@ -1,5 +1,5 @@
-const columnsGap = 30;
-const columnCount = 2048;
+const columnsGap = 1;
+const columnWidth = 3;
 
 const canvas = document.getElementById("player-fireplace");
 const ctx = canvas.getContext("2d");
@@ -9,7 +9,7 @@ const player = document.getElementById("audio-player");
 let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 let source = audioCtx.createMediaElementSource(player);
 let analyser = audioCtx.createAnalyser();
-analyser.fftSize = columnCount;
+analyser.fftSize = 2048;
 source.connect(analyser);
 analyser.connect(audioCtx.destination);
 
@@ -38,17 +38,25 @@ window.onload = function () {
   resizeCanvas();
 
   function drawColumn(x, width, height) {
-    const gradient = ctx.createLinearGradient(
-      0,
-      canvas.height - height / 2,
-      0,
-      canvas.height
-    );
-    gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
-    gradient.addColorStop(0.9, "rgba(255, 150, 0, 1)");
+    const centerY = canvas.height / 2;
+    const gradient = ctx.createLinearGradient(0, centerY - height, 0, centerY);
     gradient.addColorStop(0, "rgba(255, 0, 0, 0)");
+    gradient.addColorStop(0.85, "rgba(255, 150, 0, 1)");
+    gradient.addColorStop(1, "rgba(255, 255, 255, 1)");
+    ctx.globalCompositeOperation = 'lighter';
     ctx.fillStyle = gradient;
-    ctx.fillRect(x, canvas.height - height / 2, width, height);
+    ctx.fillRect(x, centerY - height, width, height);
+  }
+
+  function drawDownColumn(x, width, height) {
+    const centerY = canvas.height / 2;
+    const gradient = ctx.createLinearGradient(0, centerY, 0, centerY + height);
+    gradient.addColorStop(0, "rgba(255, 255, 255, 1)");
+    gradient.addColorStop(0.15, "rgba(255, 150, 0, 1)");
+    gradient.addColorStop(1, "rgba(255, 0, 0, 0)");
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, centerY, width, height);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   function render() {
@@ -56,18 +64,32 @@ window.onload = function () {
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const columnWidth =
-      canvas.width / frequencyData.length -
-      columnsGap +
-      columnsGap / frequencyData.length;
-    const heightScale = canvas.height / 100;
+    const totalColumns = Math.floor(canvas.width / (columnWidth + columnsGap));
+    const heightScale = canvas.height / 510;
 
     let xPos = 0;
 
-    for (let i = 0; i < frequencyData.length; i++) {
-      let columnHeight = frequencyData[i] * heightScale;
+    const centerColumn = Math.floor(totalColumns / 2);
 
-      drawColumn(xPos, columnWidth, columnHeight / 2);
+    for (let i = 0; i < totalColumns; i++) {
+      // Calculate distance from center
+      const distanceFromCenter = Math.abs(i - centerColumn);
+
+      // Map distance to frequency data (start from low bass, not DC)
+      const frequencyIndex =
+        centerColumn > 0
+          ? Math.floor(
+              1 +
+                (distanceFromCenter / centerColumn) * (frequencyData.length - 1)
+            )
+          : 1;
+      let columnHeight = frequencyData[frequencyIndex] * heightScale;
+
+      if (isNaN(columnHeight)) columnHeight = 0;
+      if (columnHeight > 0) {
+        drawColumn(xPos, columnWidth, columnHeight);
+        drawDownColumn(xPos, columnWidth, columnHeight);
+      }
 
       xPos += columnWidth + columnsGap;
     }
